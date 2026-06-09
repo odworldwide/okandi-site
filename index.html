@@ -226,6 +226,23 @@ if (ENABLE_MATRIX_DOMAIN) {
       mouse.y = -(e.clientY / innerHeight) * 2 + 1;
     });
 
+    // ─── Touch input ──────────────────────────────────────────────────────────
+    function updateFromTouch(e) {
+      if (e.touches.length === 0) return;
+      const t = e.touches[0];
+      mx = t.clientX; my = t.clientY;
+      mouse.x =  (t.clientX / innerWidth)  * 2 - 1;
+      mouse.y = -(t.clientY / innerHeight) * 2 + 1;
+    }
+    window.addEventListener('touchstart', updateFromTouch, { passive: true });
+    window.addEventListener('touchmove',  updateFromTouch, { passive: true });
+
+    // Hide cursor elements on touch/coarse-pointer devices
+    if (!window.matchMedia('(pointer: fine)').matches) {
+      dot.style.display  = 'none';
+      ring.style.display = 'none';
+    }
+
     // ─── Noise helpers (classic Perlin, GLSL-side) ────────────────────────────
     const vertexShader = /* glsl */`
       uniform float uTime;
