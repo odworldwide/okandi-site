@@ -113,6 +113,30 @@
       from { opacity: 0; transform: translateY(6px); }
       to   { opacity: 1; transform: translateY(0); }
     }
+
+    #name-tag {
+      display: inline-block;
+      margin-left: 1.2em;
+    }
+
+    .tag-c {
+      display: inline-block;
+      opacity: 0;
+      color: rgba(195,193,190,0.38);
+    }
+
+    @keyframes tagCharIn {
+      0%   { opacity: 0; transform: translateY(9px) scale(0.82); filter: blur(4px); }
+      55%  { opacity: 1; transform: translateY(-3px) scale(1.07); filter: blur(0); }
+      78%  { transform: translateY(0.5px) scale(0.99); }
+      100% { opacity: 1; transform: translateY(0) scale(1.0); filter: blur(0); }
+    }
+
+    @keyframes tagCharOut {
+      0%   { opacity: 1; transform: translateY(0) scale(1.0); filter: blur(0); }
+      22%  { transform: translateY(-3px) scale(1.02); opacity: 0.85; }
+      100% { opacity: 0; transform: translateY(-9px) scale(0.88); filter: blur(3px); }
+    }
   </style>
 </head>
 <body>
@@ -120,7 +144,7 @@
   <div id="cursor"></div>
   <div id="cursor-ring"></div>
   <div id="rule"></div>
-<div id="name">okandi</div>
+<div id="name">okandi<span id="name-tag"></span></div>
   <div id="domain">okandi.co </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -139,65 +163,100 @@ const matrixChars = 'アァカサタナハマヤャラワ0123456789ABCDEFGHIJKLM
 const maxLength = Math.max(...domainTexts.map(t => t.length));
 let domainIndex = 0;
 
-if (ENABLE_MATRIX_DOMAIN) {
-  // Create fixed character slots
-  domainEl.innerHTML = '';
+// // ─── "design" tag — spring character animation ───────────────────────────────
+// (function () {
+//   const tag = document.getElementById('name-tag');
+//   'design'.split('').forEach(ch => {
+//     const s = document.createElement('span');
+//     s.className = 'tag-c';
+//     s.textContent = ch;
+//     tag.appendChild(s);
+//   });
 
-  const slots = [];
+//   const chars    = Array.from(tag.querySelectorAll('.tag-c'));
+//   const START    = 100;   // delay from page load (ms)
+//   const STAG_IN  = 46;     // stagger between each char entry (ms)
+//   const IN_DUR   = 740;    // duration of in animation (ms)
+//   const HOLD     = 2800;   // how long the word stays visible (ms)
+//   const STAG_OUT = 38;     // stagger between each char exit (ms)
 
-  for (let i = 0; i < maxLength; i++) {
-    const span = document.createElement('span');
-    span.className = 'domain-char';
-    span.textContent = ' ';
-    domainEl.appendChild(span);
-    slots.push(span);
-  }
+//   setTimeout(() => {
+//     // entry: left → right, spring overshoot
+//     chars.forEach((c, i) => {
+//       c.style.animation =
+//         `tagCharIn ${IN_DUR}ms cubic-bezier(0.34,1.56,0.64,1) ${i * STAG_IN}ms forwards`;
+//     });
 
-  function alignRight(text) {
-    return text.padStart(maxLength, ' ');
-  }
+//     // exit: right → left, acceleration ease-in, `both` to hold during stagger delay
+//     const inComplete = (chars.length - 1) * STAG_IN + IN_DUR;
+//     setTimeout(() => {
+//       [...chars].reverse().forEach((c, i) => {
+//         c.style.animation =
+//           `tagCharOut 500ms cubic-bezier(0.36,0,0.66,0) ${i * STAG_OUT}ms both`;
+//       });
+//     }, inComplete + HOLD);
+//   }, START);
+// })();
 
-  function setDomainText(text) {
-    const padded = alignRight(text);
-    slots.forEach((slot, i) => { slot.textContent = padded[i]; });
-  }
+// if (ENABLE_MATRIX_DOMAIN) {
+//   // Create fixed character slots
+//   domainEl.innerHTML = '';
 
-  function scrambleTo(nextText) {
-    const target  = alignRight(nextText);
-    const totalMs = 2800;
-    const frameMs = 55;
-    const frames  = Math.floor(totalMs / frameMs);
-    let   frame   = 0;
+//   const slots = [];
 
-    // Each non-space slot locks into its target at a random point in [55%, 90%]
-    const lockAt = slots.map(() => Math.floor(frames * (0.55 + Math.random() * 0.35)));
+//   for (let i = 0; i < maxLength; i++) {
+//     const span = document.createElement('span');
+//     span.className = 'domain-char';
+//     span.textContent = ' ';
+//     domainEl.appendChild(span);
+//     slots.push(span);
+//   }
 
-    const interval = setInterval(() => {
-      slots.forEach((slot, i) => {
-        if (target[i] === ' ') {
-          slot.textContent = ' ';
-        } else if (frame >= lockAt[i]) {
-          slot.textContent = target[i];
-        } else {
-          slot.textContent = matrixChars[Math.floor(Math.random() * matrixChars.length)];
-        }
-      });
+//   function alignRight(text) {
+//     return text.padStart(maxLength, ' ');
+//   }
 
-      frame++;
-      if (frame > frames) {
-        clearInterval(interval);
-        setDomainText(nextText);
-      }
-    }, frameMs);
-  }
+//   function setDomainText(text) {
+//     const padded = alignRight(text);
+//     slots.forEach((slot, i) => { slot.textContent = padded[i]; });
+//   }
 
-  setDomainText(domainTexts[0]);
+//   function scrambleTo(nextText) {
+//     const target  = alignRight(nextText);
+//     const totalMs = 2800;
+//     const frameMs = 55;
+//     const frames  = Math.floor(totalMs / frameMs);
+//     let   frame   = 0;
 
-  setInterval(() => {
-    domainIndex = (domainIndex + 1) % domainTexts.length;
-    scrambleTo(domainTexts[domainIndex]);
-  }, 5800);
-}
+//     // Each non-space slot locks into its target at a random point in [55%, 90%]
+//     const lockAt = slots.map(() => Math.floor(frames * (0.55 + Math.random() * 0.35)));
+
+//     const interval = setInterval(() => {
+//       slots.forEach((slot, i) => {
+//         if (target[i] === ' ') {
+//           slot.textContent = ' ';
+//         } else if (frame >= lockAt[i]) {
+//           slot.textContent = target[i];
+//         } else {
+//           slot.textContent = matrixChars[Math.floor(Math.random() * matrixChars.length)];
+//         }
+//       });
+
+//       frame++;
+//       if (frame > frames) {
+//         clearInterval(interval);
+//         setDomainText(nextText);
+//       }
+//     }, frameMs);
+//   }
+
+//   setDomainText(domainTexts[0]);
+
+//   setInterval(() => {
+//     domainIndex = (domainIndex + 1) % domainTexts.length;
+//     scrambleTo(domainTexts[domainIndex]);
+//   }, 5800);
+// }
 
     // ─── Renderer ────────────────────────────────────────────────────────────
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
