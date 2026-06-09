@@ -54,10 +54,11 @@
       bottom: 2.6rem;
       left: 3rem;
       font-family: 'Inter', sans-serif;
-      font-weight: 100;
+      font-weight: 200;
       font-size: clamp(0.85rem, 1.1vw, 1.1rem);
       letter-spacing: 0.55em;
-      color: rgba(245,242,235,0.82);
+      color: rgba(245,242,235,0.92);
+      text-shadow: 0 0 24px rgba(245,242,235,0.12);
       text-transform: lowercase;
       pointer-events: none;
       z-index: 10;
@@ -71,10 +72,11 @@
   bottom: 2.6rem;
   right: 3rem;
   font-family: 'Courier New', monospace;
-  font-weight: 100;
-  font-size: clamp(0.65rem, 0.8vw, 0.8rem);
+  font-weight: 400;
+  font-size: clamp(0.68rem, 0.85vw, 0.85rem);
   letter-spacing: 0.2em;
-  color: rgba(245,242,235,0.26);
+  color: rgba(245,242,235,0.60);
+  text-shadow: 0 0 20px rgba(245,242,235,0.10);
   text-transform: lowercase;
   pointer-events: none;
   z-index: 10;
@@ -393,7 +395,7 @@ if (ENABLE_MATRIX_DOMAIN) {
         // Cursor proximity: drives clarity (brightness) and distortion (disturbed glass)
         // Brightness: per-fragment cursor proximity
         float cursorReveal = exp(-mDist * mDist * 0.06);
-        float imageClarity = 0.06 + cursorReveal * 0.88;
+        float imageClarity = 0.28 + cursorReveal * 0.72;
 
         // Distortion: cursor-to-logo-center distance — zero when hovering, max when away
         float distFromCenter = length(mLocal);
@@ -443,42 +445,42 @@ if (ENABLE_MATRIX_DOMAIN) {
                             smoothstep(0.0, 0.03, ghostUV.y) * smoothstep(1.0, 0.97, ghostUV.y);
 
         // Ghost layer: quiet archival imprint, always faintly present
-        col += strokeGhost * uvFadeGhost * light * 0.028;
+        col += strokeGhost * uvFadeGhost * light * 0.10;
 
         // Refraction layer: cursor disturbs and reveals the mark
         float sdfContrib = strokeRef + edgeBand * 0.65 + outerHalo * 0.12;
-        col += sdfContrib * uvFade * imageClarity * light * 0.38;
+        col += sdfContrib * uvFade * imageClarity * light * 0.68;
 
         // ── Luminescent breathing glow (SDF-driven edge) ──────────────────────
         float breathRaw = sin(uTime * 0.285);
         float breath    = pow(breathRaw * 0.5 + 0.5, 1.6);
 
-        vec3 glowAmber  = vec3(0.20, 0.13, 0.06);
-        vec3 glowSilver = vec3(0.13, 0.17, 0.27);
+        vec3 glowAmber  = vec3(0.34, 0.21, 0.08);
+        vec3 glowSilver = vec3(0.20, 0.27, 0.46);
         vec3 glowCol    = mix(glowAmber, glowSilver, breath);
 
         // Edge glow follows the true SDF stroke boundary
         float sdfEdge  = abs(sdfClean - 0.5);
-        float edgeGlow = exp(-sdfEdge * sdfEdge * 240.0) * (0.03 + breath * 0.19);
+        float edgeGlow = exp(-sdfEdge * sdfEdge * 240.0) * (0.08 + breath * 0.38);
 
         // Outer halo and pulses stay geometric (atmospheric, not pixel-perfect)
         float haloR    = logoRadius + 0.03 + breath * 0.10;
         float haloDist = max(logoDist - haloR, 0.0);
-        float halo     = exp(-haloDist * haloDist * 18.0) * (0.006 + breath * 0.07);
+        float halo     = exp(-haloDist * haloDist * 18.0) * (0.014 + breath * 0.16);
 
-        float innerFill = (1.0 - smoothstep(0.0, logoRadius, logoDist)) * 0.012 * breath;
+        float innerFill = (1.0 - smoothstep(0.0, logoRadius, logoDist)) * 0.022 * breath;
 
         float pt1    = mod(uTime * 0.083, 1.0);
         float pR1    = logoDist - logoRadius - pt1 * 1.7;
-        float pulse1 = exp(-pR1 * pR1 * 44.0) * pow(1.0 - pt1, 1.8) * 0.16;
+        float pulse1 = exp(-pR1 * pR1 * 44.0) * pow(1.0 - pt1, 1.8) * 0.28;
 
         float pt2    = mod(uTime * 0.056, 1.0);
         float pR2    = logoDist - logoRadius - pt2 * 2.4;
-        float pulse2 = exp(-pR2 * pR2 * 22.0) * pow(1.0 - pt2, 2.4) * 0.09;
+        float pulse2 = exp(-pR2 * pR2 * 22.0) * pow(1.0 - pt2, 2.4) * 0.18;
 
         float glowFade = 1.0 - smoothstep(logoRadius, logoRadius + 0.55, logoDist);
 
-        col += (edgeGlow + halo + innerFill + pulse1 + pulse2) * glowCol * glowFade * 0.45;
+        col += (edgeGlow + halo + innerFill + pulse1 + pulse2) * glowCol * glowFade * 0.80;
         // ──────────────────────────────────────────────────────────────────────
 
         gl_FragColor = vec4(col, 1.0);
@@ -544,7 +546,7 @@ if (ENABLE_MATRIX_DOMAIN) {
       // Logo: pin to ~40% of viewport width
       const visUV = Math.tan(hhF) * hz / (4.0 * scale);
       //size
-      uniforms.uLogoScale.value = 1.0 / (0.35 * visUV);
+      uniforms.uLogoScale.value = 1.0 / (0.75 * visUV);
     }
 
     coverAndSize();
