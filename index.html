@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>okandi</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;200&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    html, body {
+      width: 100%; height: 100%;
+      background: #fffacd;
+      overflow: hidden;
+      cursor: none;
+    }
+
+    canvas {
+      display: block;
+      position: fixed;
+      inset: 0;
+      height: 100dvh;
+    }
+
+    /* Cursor */
+    #cursor {
+      position: fixed;
+      width: 6px; height: 6px;
+      background: rgba(255,255,255,0.9);
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      transition: width 0.2s, height 0.2s, opacity 0.2s;
+      z-index: 100;
+      mix-blend-mode: difference;
+    }
+
+    #cursor-ring {
+      position: fixed;
+      width: 32px; height: 32px;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+      z-index: 100;
+      mix-blend-mode: difference;
+      transition: width 0.3s ease, height 0.3s ease;
+    }
+
+    /* Main name */
+    #name {
+      position: fixed;
+      bottom: 2.6rem;
+      left: 3rem;
+      font-family: 'Inter', sans-serif;
+      font-weight: 100;
+      font-size: clamp(0.85rem, 1.1vw, 1.1rem);
+      letter-spacing: 0.55em;
+      color: rgba(15,12,4,0.78);
+      text-transform: lowercase;
+      pointer-events: none;
+      z-index: 10;
+      opacity: 0;
+      animation: fadeUp 2s ease 1.2s forwards;
+    }
+
+    /* Domain tag */
+  #domain {
+  position: fixed;
+  bottom: 2.6rem;
+  right: 3rem;
+  font-family: 'Courier New', monospace;
+  font-weight: 100;
+  font-size: clamp(0.65rem, 0.8vw, 0.8rem);
+  letter-spacing: 0.2em;
+  color: rgba(15,12,4,0.32);
+  text-transform: lowercase;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0;
+  animation: fadeUp 2s ease 1.6s forwards;
+
+  display: flex;
+  justify-content: flex-end;
+  white-space: pre;
+}
+
+.domain-char {
+  display: inline-block;
+  width: 1ch;
+  text-align: center;
+}
+
+    /* Thin top rule */
+    #rule {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(0,0,0,0.10) 50%, transparent);
+      z-index: 10;
+      opacity: 0;
+      animation: fadeIn 2s ease 2s forwards;
+    }
+
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(6px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="cursor"></div>
+  <div id="cursor-ring"></div>
+  <div id="rule"></div>
+<div id="name">okandi</div>
+  <div id="domain">okandi.co</div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+  (function () {
+
+ // ─── Matrix scramble toggle ───────────────────────────────────────────────
+const ENABLE_MATRIX_DOMAIN = false;
+
+ // ─── Matrix scramble without moving characters ─────────────────────────────
+const domainEl = document.getElementById('domain');
+
+const domainTexts = ['okandi.co', 'under construction'];
+const matrixChars = 'アァカサタナハマヤャラワ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+
+const maxLength = Math.max(...domainTexts.map(t => t.length));
+let domainIndex = 0;
+
+if (ENABLE_MATRIX_DOMAIN) {
+  // Create fixed character slots
+  domainEl.innerHTML = '';
+
+  const slots = [];
+
+  for (let i = 0; i < maxLength; i++) {
+    const span = document.createElement('span');
+    span.className = 'domain-char';
+    span.textContent = ' ';
+    domainEl.appendChild(span);
+    slots.push(span);
+  }
+
+  function alignRight(text) {
+    return text.padStart(maxLength, ' ');
+  }
+
+  function setDomainText(text) {
+    const padded = alignRight(text);
+    slots.forEach((slot, i) => { slot.textContent = padded[i]; });
+  }
+
+  function scrambleTo(nextText) {
+    const target  = alignRight(nextText);
+    const totalMs = 2800;
+    const frameMs = 55;
+    const frames  = Math.floor(totalMs / frameMs);
+    let   frame   = 0;
+
+    // Each non-space slot locks into its target at a random point in [55%, 90%]
+    const lockAt = slots.map(() => Math.floor(frames * (0.55 + Math.random() * 0.35)));
+
+    const interval = setInterval(() => {
+      slots.forEach((slot, i) => {
+        if (target[i] === ' ') {
+          slot.textContent = ' ';
+        } else if (frame >= lockAt[i]) {
+          slot.textContent = target[i];
+        } else {
+          slot.textContent = matrixChars[Math.floor(Math.random() * matrixChars.length)];
+        }
+      });
+
+      frame++;
+      if (frame > frames) {
+        clearInterval(interval);
+        setDomainText(nextText);
+      }
+    }, frameMs);
+  }
+
+  setDomainText(domainTexts[0]);
+
+  setInterval(() => {
+    domainIndex = (domainIndex + 1) % domainTexts.length;
+    scrambleTo(domainTexts[domainIndex]);
+  }, 5800);
+}
+
+    // ─── Renderer ────────────────────────────────────────────────────────────
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setClearColor(0xfffacd, 1);
+    document.body.appendChild(renderer.domElement);
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.01, 100);
+    camera.position.set(0, -0.4, 4.2);
+    camera.lookAt(0, 0, 0);
+
+    // ─── Cursor ───────────────────────────────────────────────────────────────
+    const dot  = document.getElementById('cursor');
+    const ring = document.getElementById('cursor-ring');
+    let mx = innerWidth / 2, my = innerHeight / 2;
+    let rx = mx, ry = my;
+
+    window.addEventListener('mousemove', e => { mx = e.clientX; my = e.clientY; });
+
+    // ─── Mouse in NDC ─────────────────────────────────────────────────────────
+    const mouse  = new THREE.Vector2(0, 0);
+    const smooth = new THREE.Vector2(0, 0);
+
+    window.addEventListener('mousemove', e => {
+      mouse.x =  (e.clientX / innerWidth)  * 2 - 1;
+      mouse.y = -(e.clientY / innerHeight) * 2 + 1;
+    });
+
+    // ─── Noise helpers (classic Perlin, GLSL-side) ────────────────────────────
+    const vertexShader = /* glsl */`
+      uniform float uTime;
+      uniform vec2  uMouse;
+      uniform float uStrength;
+
+      varying vec2  vUv;
+      varying float vElev;
+      varying vec3  vNorm;
+
+      // ---- Classic Perlin noise (3D) ----------------------------------------
+      vec4 permute4(vec4 x){ return mod(((x*34.)+1.)*x, 289.); }
+      vec4 taylorInvSqrt(vec4 r){ return 1.79284291400159 - .85373472095314*r; }
+      vec3 fade3(vec3 t){ return t*t*t*(t*(t*6.-15.)+10.); }
+
+      float cnoise(vec3 P){
+        vec3 Pi0=floor(P), Pi1=Pi0+1.;
+        Pi0=mod(Pi0,289.); Pi1=mod(Pi1,289.);
+        vec3 Pf0=fract(P), Pf1=Pf0-1.;
+        vec4 ix=vec4(Pi0.x,Pi1.x,Pi0.x,Pi1.x);
+        vec4 iy=vec4(Pi0.yy,Pi1.yy);
+        vec4 iz0=Pi0.zzzz, iz1=Pi1.zzzz;
+        vec4 ixy =permute4(permute4(ix)+iy);
+        vec4 ixy0=permute4(ixy+iz0), ixy1=permute4(ixy+iz1);
+        vec4 gx0=ixy0/7., gy0=fract(floor(gx0)/7.)-.5;
+        gx0=fract(gx0);
+        vec4 gz0=.5-abs(gx0)-abs(gy0);
+        vec4 sz0=step(gz0,vec4(0.));
+        gx0-=sz0*(step(0.,gx0)-.5); gy0-=sz0*(step(0.,gy0)-.5);
+        vec4 gx1=ixy1/7., gy1=fract(floor(gx1)/7.)-.5;
+        gx1=fract(gx1);
+        vec4 gz1=.5-abs(gx1)-abs(gy1);
+        vec4 sz1=step(gz1,vec4(0.));
+        gx1-=sz1*(step(0.,gx1)-.5); gy1-=sz1*(step(0.,gy1)-.5);
+        vec3 g000=vec3(gx0.x,gy0.x,gz0.x), g100=vec3(gx0.y,gy0.y,gz0.y);
+        vec3 g010=vec3(gx0.z,gy0.z,gz0.z), g110=vec3(gx0.w,gy0.w,gz0.w);
+        vec3 g001=vec3(gx1.x,gy1.x,gz1.x), g101=vec3(gx1.y,gy1.y,gz1.y);
+        vec3 g011=vec3(gx1.z,gy1.z,gz1.z), g111=vec3(gx1.w,gy1.w,gz1.w);
+        vec4 norm0=taylorInvSqrt(vec4(dot(g000,g000),dot(g010,g010),dot(g100,g100),dot(g110,g110)));
+        g000*=norm0.x; g010*=norm0.y; g100*=norm0.z; g110*=norm0.w;
+        vec4 norm1=taylorInvSqrt(vec4(dot(g001,g001),dot(g011,g011),dot(g101,g101),dot(g111,g111)));
+        g001*=norm1.x; g011*=norm1.y; g101*=norm1.z; g111*=norm1.w;
+        float n000=dot(g000,Pf0);
+        float n100=dot(g100,vec3(Pf1.x,Pf0.yz));
+        float n010=dot(g010,vec3(Pf0.x,Pf1.y,Pf0.z));
+        float n110=dot(g110,vec3(Pf1.xy,Pf0.z));
+        float n001=dot(g001,vec3(Pf0.xy,Pf1.z));
+        float n101=dot(g101,vec3(Pf1.x,Pf0.y,Pf1.z));
+        float n011=dot(g011,vec3(Pf0.x,Pf1.yz));
+        float n111=dot(g111,Pf1);
+        vec3 fade_xyz=fade3(Pf0);
+        vec4 n_z=mix(vec4(n000,n100,n010,n110),vec4(n001,n101,n011,n111),fade_xyz.z);
+        vec2 n_yz=mix(n_z.xy,n_z.zw,fade_xyz.y);
+        return 2.2*mix(n_yz.x,n_yz.y,fade_xyz.x);
+      }
+      // -----------------------------------------------------------------------
+
+      void main(){
+        vUv = uv;
+
+        vec3 pos = position;
+
+        // ---- ambient breath wave -------------------------------------------
+        float n1 = cnoise(vec3(pos.xy * 1.1 + uTime * 0.09, uTime * 0.07));
+        float n2 = cnoise(vec3(pos.xy * 2.2 - uTime * 0.06, uTime * 0.11 + 5.));
+        float ambient = n1 * 0.13 + n2 * 0.05;
+
+        // ---- mouse dent (Gaussian pull) ------------------------------------
+        // map mouse NDC → mesh local coords (plane spans -4..4)
+        vec2 mLocal = uMouse * 4.0;
+        float dist  = length(pos.xy - mLocal);
+        float dent  = exp(-dist * dist * 0.16) * uStrength * 0.18;
+
+        float elev = ambient + dent;
+        pos.z += elev;
+        vElev = elev;
+
+        // ---- approximate normal (finite diff) ------------------------------
+        float eps = 0.04;
+        float ex = cnoise(vec3((pos.x+eps)*1.1 + uTime*0.09, pos.y*1.1 + uTime*0.09, uTime*0.07))*.13
+                 + cnoise(vec3((pos.x+eps)*2.2 - uTime*0.06, pos.y*2.2 - uTime*0.06, uTime*0.11+5.))*.05;
+        float ey = cnoise(vec3(pos.x*1.1 + uTime*0.09, (pos.y+eps)*1.1 + uTime*0.09, uTime*0.07))*.13
+                 + cnoise(vec3(pos.x*2.2 - uTime*0.06, (pos.y+eps)*2.2 - uTime*0.06, uTime*0.11+5.))*.05;
+        vNorm = normalize(vec3(-(ex - ambient)/eps, -(ey - ambient)/eps, 1.0));
+
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+      }
+    `;
+
+    const fragmentShader = /* glsl */`
+      uniform float      uTime;
+      uniform vec2       uMouse;
+      uniform sampler2D  uLogo;
+      uniform float      uLogoScale;
+      uniform vec2       uMouseToLocal;
+
+      varying vec2  vUv;
+      varying float vElev;
+      varying vec3  vNorm;
+
+      void main(){
+        // base dark surface
+        vec3 dark  = vec3(0.88, 0.83, 0.58);
+        vec3 light = vec3(1.0,  0.98, 0.80);
+
+        // fake diffuse from top-right
+        vec3 lDir = normalize(vec3(1.0, 1.2, 2.0));
+        float diff = max(dot(vNorm, lDir), 0.0) * 0.3;
+
+        // cursor glow — layered bloom that disperses across the surface
+        vec2 mLocal = uMouse * uMouseToLocal;
+        float mDist = length(vUv * 8.0 - 4.0 - mLocal);
+
+        float cursorCore  = exp(-mDist * mDist * 0.55) * 0.10;
+        float cursorAura  = exp(-mDist * mDist * 0.08) * 0.13;
+        float cursorField = exp(-mDist * mDist * 0.018) * 0.06;
+
+        // slow ripple rings emanating from cursor
+        float cursorWave  = sin(mDist * 5.5 - uTime * 1.0) * 0.5 + 0.5;
+        cursorWave *= exp(-mDist * mDist * 0.045) * 0.032;
+
+        // shimmer weighted by cursor proximity — doesn't flash the whole screen
+        float cursorShimmer =
+          sin((vUv.x + vUv.y) * 38.0 + uTime * 0.7) *
+          cos((vUv.x - vUv.y) * 31.0 - uTime * 0.5) *
+          exp(-mDist * mDist * 0.12) * 0.022;
+
+        float cursorGlow = cursorCore + cursorAura + cursorField + cursorWave + cursorShimmer;
+
+        float t = clamp(vElev * 2.8 + 0.18, 0.0, 1.0);
+        vec3 col = mix(dark, light, t + diff);
+
+        // on a light surface the cursor casts a warm shadow instead of glowing
+        col -= cursorGlow * vec3(0.08, 0.06, 0.02);
+
+        // very soft vignette
+        vec2 uv2 = vUv * 2.0 - 1.0;
+        float vig = 1.0 - dot(uv2, uv2) * 0.28;
+        col *= vig;
+
+        // ── Logo coords ────────────────────────────────────────────────────────
+        vec2  logoUV    = (vUv - 0.5) * uLogoScale + 0.5;
+        vec2  logoCen   = logoUV - 0.5;
+        float logoDist  = length(logoCen);
+        float logoRadius = 0.455;
+
+        // ── SDF refraction reveal ──────────────────────────────────────────────
+        // Cursor proximity: drives clarity (brightness) and distortion (disturbed glass)
+        // Brightness: per-fragment cursor proximity
+        float cursorReveal = exp(-mDist * mDist * 0.06);
+        float imageClarity = 0.06 + cursorReveal * 0.88;
+
+        // Distortion: cursor-to-logo-center distance — zero when hovering, max when away
+        float distFromCenter = length(mLocal);
+        float scatter = 0.050 * smoothstep(0.0, 2.6, distFromCenter);
+
+        // Slow liquid drift — two noise octaves at different rates
+        float st1 = uTime * 0.07;
+        float st2 = uTime * 0.044;
+        vec2 drift = vec2(
+          sin(logoUV.x * 11.3 + st1 + logoUV.y *  8.6) * 0.007 +
+          sin(logoUV.x *  6.4 - st2 + logoUV.y *  5.1) * 0.010,
+          cos(logoUV.y * 10.8 + st1 + logoUV.x *  7.9) * 0.007 +
+          cos(logoUV.y *  5.7 - st2 + logoUV.x *  6.8) * 0.010
+        );
+
+        // Refracted UV: fog scatter riding the slow drift
+        vec2 refractUV = logoUV + drift + vec2(
+          sin(logoUV.x * 47.2 + st1 * 1.6 + logoUV.y * 31.4),
+          cos(logoUV.y * 53.8 - st1 * 1.4 + logoUV.x * 43.1)
+        ) * scatter;
+
+        // Ghost UV: barely moves — persistent imprint
+        vec2 ghostUV = logoUV + drift * 0.25;
+
+        vec2 safeRef   = clamp(refractUV, 0.001, 0.999);
+        vec2 safeGhost = clamp(ghostUV,   0.001, 0.999);
+        vec2 safeClean = clamp(logoUV,    0.001, 0.999);
+
+        // SDF samples — 0.0=far outside, 0.5=edge, >0.5=inside stroke
+        float sdfRef   = texture2D(uLogo, safeRef  ).r;
+        float sdfGhost = texture2D(uLogo, safeGhost).r;
+        float sdfClean = texture2D(uLogo, safeClean).r; // undistorted: drives glow
+
+        // Anti-aliased stroke from SDF
+        float strokeRef   = smoothstep(0.44, 0.54, sdfRef);
+        float strokeGhost = smoothstep(0.44, 0.54, sdfGhost);
+
+        // Edge band: peaks at the stroke boundary, fades outward
+        float edgeBand  = smoothstep(0.20, 0.44, sdfRef) * smoothstep(0.56, 0.44, sdfRef);
+        // Outer atmospheric halo
+        float outerHalo = smoothstep(0.0, 0.20, sdfRef);
+
+        // UV boundary fade — prevents clamped-edge bleeding
+        float uvFade = smoothstep(0.0, 0.03, refractUV.x) * smoothstep(1.0, 0.97, refractUV.x) *
+                       smoothstep(0.0, 0.03, refractUV.y) * smoothstep(1.0, 0.97, refractUV.y);
+        float uvFadeGhost = smoothstep(0.0, 0.03, ghostUV.x) * smoothstep(1.0, 0.97, ghostUV.x) *
+                            smoothstep(0.0, 0.03, ghostUV.y) * smoothstep(1.0, 0.97, ghostUV.y);
+
+        // Ghost layer: faint ink imprint, always present
+        vec3 logoInk = vec3(0.50, 0.38, 0.08);
+        col -= strokeGhost * uvFadeGhost * logoInk * 0.10;
+
+        // Refraction layer: cursor clears fog to reveal dark ink marks
+        float sdfContrib = strokeRef + edgeBand * 0.65 + outerHalo * 0.12;
+        col -= sdfContrib * uvFade * imageClarity * logoInk * 0.48;
+
+        // ── Luminescent breathing glow (SDF-driven edge) ──────────────────────
+        float breathRaw = sin(uTime * 0.285);
+        float breath    = pow(breathRaw * 0.5 + 0.5, 1.6);
+
+        // glow subtracts on a light surface — dark golden shadow ring
+        vec3 glowAmber  = vec3(0.55, 0.40, 0.08);
+        vec3 glowSilver = vec3(0.32, 0.26, 0.10);
+        vec3 glowCol    = mix(glowAmber, glowSilver, breath);
+
+        // Edge glow follows the true SDF stroke boundary
+        float sdfEdge  = abs(sdfClean - 0.5);
+        float edgeGlow = exp(-sdfEdge * sdfEdge * 240.0) * (0.03 + breath * 0.19);
+
+        // Outer halo and pulses stay geometric (atmospheric, not pixel-perfect)
+        float haloR    = logoRadius + 0.03 + breath * 0.10;
+        float haloDist = max(logoDist - haloR, 0.0);
+        float halo     = exp(-haloDist * haloDist * 18.0) * (0.006 + breath * 0.07);
+
+        float innerFill = (1.0 - smoothstep(0.0, logoRadius, logoDist)) * 0.012 * breath;
+
+        float pt1    = mod(uTime * 0.083, 1.0);
+        float pR1    = logoDist - logoRadius - pt1 * 1.7;
+        float pulse1 = exp(-pR1 * pR1 * 44.0) * pow(1.0 - pt1, 1.8) * 0.16;
+
+        float pt2    = mod(uTime * 0.056, 1.0);
+        float pR2    = logoDist - logoRadius - pt2 * 2.4;
+        float pulse2 = exp(-pR2 * pR2 * 22.0) * pow(1.0 - pt2, 2.4) * 0.09;
+
+        float glowFade = 1.0 - smoothstep(logoRadius, logoRadius + 0.55, logoDist);
+
+        col -= (edgeGlow + halo + innerFill + pulse1 + pulse2) * glowCol * glowFade * 0.40;
+        // ──────────────────────────────────────────────────────────────────────
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `;
+
+    // ─── Mesh ─────────────────────────────────────────────────────────────────
+    const SEGS = 220;
+    const geo  = new THREE.PlaneGeometry(8, 8, SEGS, SEGS);
+
+    const logoTex = new THREE.Texture();
+    logoTex.minFilter = THREE.LinearFilter;
+    logoTex.magFilter = THREE.LinearFilter;
+    logoTex.generateMipmaps = false;
+    logoTex.wrapS = THREE.ClampToEdgeWrapping;
+    logoTex.wrapT = THREE.ClampToEdgeWrapping;
+    const logoImg = new Image();
+    logoImg.onload = () => { logoTex.image = logoImg; logoTex.needsUpdate = true; };
+    logoImg.src = 'assets/main-clean-sdf-1024.png';
+
+    const uniforms = {
+      uTime:         { value: 0 },
+      uMouse:        { value: new THREE.Vector2(0, 0) },
+      uStrength:     { value: 0 },
+      uLogo:         { value: logoTex },
+      uLogoScale:    { value: 5.0 },
+      uMouseToLocal: { value: new THREE.Vector2(4.0, 4.0) },
+    };
+
+    const mat = new THREE.ShaderMaterial({
+      uniforms,
+      vertexShader,
+      fragmentShader,
+      side: THREE.FrontSide,
+    });
+
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.rotation.x = -0.52;
+    scene.add(mesh);
+
+    // ─── Dynamic cover: scale plane to fill every viewport corner ─────────────
+    // The raw 8×8 plane at this camera distance doesn't reach the top corners on
+    // wide displays. Scale the mesh so it always overshoots every edge, and
+    // recompute the NDC→local mouse mapping so the spotlight stays on the cursor.
+    function coverAndSize() {
+      const aspect = innerWidth / innerHeight;
+      const hz     = camera.position.z;          // 4.2
+      const hvF    = 27.5 * Math.PI / 180;       // half vertical FOV
+      const hhF    = Math.atan(Math.tan(hvF) * aspect); // half horizontal FOV
+
+      // cover whichever axis needs more — on narrow viewports hvF > hhF
+      const needH = Math.tan(hhF) * hz / 4.0;
+      const needV = Math.tan(hvF) * hz / 4.0;
+      const scale = Math.max(1.0, Math.max(needH, needV) * 2.0);
+      mesh.scale.setScalar(scale);
+
+      // NDC ±1 → local coordinate at that screen edge (vUv*8-4 space)
+      uniforms.uMouseToLocal.value.set(
+        Math.tan(hhF) * hz / scale,
+        Math.tan(hvF) * hz / scale
+      );
+
+      // Logo: pin to ~40% of viewport width
+      const visUV = Math.tan(hhF) * hz / (4.0 * scale);
+      //size
+      uniforms.uLogoScale.value = 1.0 / (0.45 * visUV);
+    }
+
+    coverAndSize();
+
+    // ─── Intro: strength ramp ─────────────────────────────────────────────────
+    let startTime = null;
+    const RAMP = 2200; // ms
+
+    // ─── Resize ───────────────────────────────────────────────────────────────
+    window.addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+      coverAndSize();
+    });
+
+    // ─── Clock ────────────────────────────────────────────────────────────────
+    const clock = new THREE.Clock();
+
+    // ─── Loop ─────────────────────────────────────────────────────────────────
+    function tick(ts) {
+      requestAnimationFrame(tick);
+
+      if (!startTime) startTime = ts;
+      const ramp = Math.min((ts - startTime) / RAMP, 1.0);
+      // ease in
+      const ease = ramp < 0.5 ? 2*ramp*ramp : 1-Math.pow(-2*ramp+2,2)/2;
+
+      const t = clock.getElapsedTime();
+
+      // smooth mouse
+      smooth.x += (mouse.x - smooth.x) * 0.035;
+      smooth.y += (mouse.y - smooth.y) * 0.035;
+
+      uniforms.uTime.value     = t;
+      uniforms.uMouse.value.copy(smooth);
+      uniforms.uStrength.value = ease;
+
+      // subtle camera drift
+      camera.position.x = Math.sin(t * 0.07) * 0.05;
+      camera.position.y = -0.4 + Math.cos(t * 0.11) * 0.025;
+
+      renderer.render(scene, camera);
+
+      // ── cursor ──────────────────────────────────────────────────────────────
+      rx += (mx - rx) * 0.10;
+      ry += (my - ry) * 0.10;
+      dot.style.left  = mx + 'px';
+      dot.style.top   = my + 'px';
+      ring.style.left = rx + 'px';
+      ring.style.top  = ry + 'px';
+    }
+
+    requestAnimationFrame(tick);
+  })();
+  </script>
+</body>
+</html>
