@@ -456,9 +456,13 @@ let domainIndex = 0;
         float cursorReveal = exp(-mDist * mDist * 0.06);
         float imageClarity = 0.28 + cursorReveal * 0.72;
 
-        // Distortion: cursor-to-logo-center distance — zero when hovering, max when away
+        // Distortion: cursor-to-logo-center vector — direction follows the cursor
         float distFromCenter = length(mLocal);
-        float scatter = 0.050 * smoothstep(0.0, 2.6, distFromCenter);
+        vec2  cursorDir      = mLocal / max(distFromCenter, 0.0001);
+        float scatter        = 0.050 * smoothstep(0.0, 2.6, distFromCenter);
+
+        // Image presence eases back the further the cursor strays from the mark
+        float logoFade = mix(1.0, 0.62, smoothstep(0.0, 3.0, distFromCenter));
 
         // Slow liquid drift — two noise octaves at different rates
         float st1 = uTime * 0.07;
@@ -470,11 +474,13 @@ let domainIndex = 0;
           cos(logoUV.y *  5.7 - st2 + logoUV.x *  6.8) * 0.010
         );
 
-        // Refracted UV: fog scatter riding the slow drift
-        vec2 refractUV = logoUV + drift + vec2(
-          sin(logoUV.x * 47.2 + st1 * 1.6 + logoUV.y * 31.4),
-          cos(logoUV.y * 53.8 - st1 * 1.4 + logoUV.x * 43.1)
-        ) * scatter;
+        // Refracted UV: directional pull toward the cursor, plus organic micro-ripple
+        vec2 refractUV = logoUV + drift
+          - cursorDir * scatter
+          + vec2(
+              sin(logoUV.x * 47.2 + st1 * 1.6 + logoUV.y * 31.4),
+              cos(logoUV.y * 53.8 - st1 * 1.4 + logoUV.x * 43.1)
+            ) * scatter * 0.4;
 
         // Ghost UV: barely moves — persistent imprint
         vec2 ghostUV = logoUV + drift * 0.25;
@@ -503,12 +509,16 @@ let domainIndex = 0;
         float uvFadeGhost = smoothstep(0.0, 0.03, ghostUV.x) * smoothstep(1.0, 0.97, ghostUV.x) *
                             smoothstep(0.0, 0.03, ghostUV.y) * smoothstep(1.0, 0.97, ghostUV.y);
 
+        // Logo contributions accumulate separately so overall presence can ease
+        // with cursor distance without dimming the surrounding surface.
+        vec3 logoCol = vec3(0.0);
+
         // Ghost layer: quiet archival imprint, always faintly present
-        col += strokeGhost * uvFadeGhost * light * 0.10;
+        logoCol += strokeGhost * uvFadeGhost * light * 0.10;
 
         // Refraction layer: cursor disturbs and reveals the mark
         float sdfContrib = strokeRef + edgeBand * 0.65 + outerHalo * 0.12;
-        col += sdfContrib * uvFade * imageClarity * light * 0.68;
+        logoCol += sdfContrib * uvFade * imageClarity * light * 0.68;
 
         // ── Luminescent breathing glow (SDF-driven edge) ──────────────────────
         float breathRaw = sin(uTime * 0.285);
@@ -539,8 +549,10 @@ let domainIndex = 0;
 
         float glowFade = 1.0 - smoothstep(logoRadius, logoRadius + 0.55, logoDist);
 
-        col += (edgeGlow + halo + innerFill + pulse1 + pulse2) * glowCol * glowFade * 0.80;
+        logoCol += (edgeGlow + halo + innerFill + pulse1 + pulse2) * glowCol * glowFade * 0.80;
         // ──────────────────────────────────────────────────────────────────────
+
+        col += logoCol * logoFade;
 
         gl_FragColor = vec4(col, 1.0);
       }
@@ -558,7 +570,7 @@ let domainIndex = 0;
     logoTex.wrapT = THREE.ClampToEdgeWrapping;
     const logoImg = new Image();
     logoImg.onload = () => { logoTex.image = logoImg; logoTex.needsUpdate = true; };
-    logoImg.src = 'assets/main-clean-sdf-1024.png';
+    logoImg.src = 'assets/okandi-o-wave-logo-sdf-2048.png';
 
     const uniforms = {
       uTime:         { value: 0 },
