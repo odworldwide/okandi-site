@@ -67,32 +67,32 @@
     }
 
     /* Domain tag */
-      #domain {
-      position: fixed;
-      bottom: 2.6rem;
-      right: 3rem;
-      font-family: 'Courier New', monospace;
-      font-weight: 400;
-      font-size: clamp(0.68rem, 0.85vw, 0.85rem);
-      letter-spacing: 0.2em;
-      color: rgba(245,242,235,0.60);
-      text-shadow: 0 0 20px rgba(245,242,235,0.10);
-      text-transform: lowercase;
-      pointer-events: none;
-      z-index: 10;
-      opacity: 0;
-      animation: fadeUp 2s ease 1.6s forwards;
+  #domain {
+  position: fixed;
+  bottom: 2.6rem;
+  right: 3rem;
+  font-family: 'Courier New', monospace;
+  font-weight: 400;
+  font-size: clamp(0.68rem, 0.85vw, 0.85rem);
+  letter-spacing: 0.2em;
+  color: rgba(245,242,235,0.60);
+  text-shadow: 0 0 20px rgba(245,242,235,0.10);
+  text-transform: lowercase;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0;
+  animation: fadeUp 2s ease 1.6s forwards;
 
-      display: flex;
-      justify-content: flex-end;
-      white-space: pre;
-    }
+  display: flex;
+  justify-content: flex-end;
+  white-space: pre;
+}
 
-    .domain-char {
-      display: inline-block;
-      width: 1ch;
-      text-align: center;
-    }
+.domain-char {
+  display: inline-block;
+  width: 1ch;
+  text-align: center;
+}
 
     /* Thin top rule */
     #rule {
@@ -509,16 +509,6 @@ let domainIndex = 0;
         // Refraction layer: cursor disturbs and reveals the mark
         float sdfContrib = strokeRef + edgeBand * 0.65 + outerHalo * 0.12;
         col += sdfContrib * uvFade * imageClarity * light * 0.68;
-
-        // ── Emboss: subtle engraved relief, light from top-left ────────────────
-        float bevelEps = 0.0045;
-        vec2  bevelDir = vec2(-bevelEps, bevelEps);
-        float sdfHi = texture2D(uLogo, clamp(safeClean + bevelDir, 0.001, 0.999)).r;
-        float sdfLo = texture2D(uLogo, clamp(safeClean - bevelDir, 0.001, 0.999)).r;
-        float bevel = (sdfHi - sdfLo) * 5.0;
-
-        col += max(bevel, 0.0)  * vec3(0.40, 0.38, 0.34)   * strokeRef * uvFade * imageClarity * 0.5;
-        col -= max(-bevel, 0.0) * vec3(0.020, 0.020, 0.022) * strokeRef * uvFade * 0.7;
 
         // ── Luminescent breathing glow (SDF-driven edge) ──────────────────────
         float breathRaw = sin(uTime * 0.285);
